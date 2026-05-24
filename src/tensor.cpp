@@ -1,7 +1,7 @@
 #include <vector>
 #include <iostream>
 
-#include "tensor.h"
+#include "tensor.hpp"
 
 //Helpers
 
@@ -49,7 +49,7 @@ void check_shape(const T& x, std::vector<std::size_t>& shape, std::size_t depth)
     }
 }
 
-void set_stride(const std::vector<std::size_t> shape, std::vector<std::size_t>& stride)
+void set_stride(const std::vector<std::size_t>& shape, std::vector<std::size_t>& stride)
 {
     if (shape.size() == 0)
     {
@@ -68,14 +68,19 @@ void set_stride(const std::vector<std::size_t> shape, std::vector<std::size_t>& 
 }
 
 template <typename T>
-void build_tensor(const T& raw_data, 
-    std::vector<float>& data, 
+void build_tensor(const T& data, 
+    std::shared_ptr<TensorStorage>& storage, 
     std::vector<std::size_t>& shape, 
-    std::vector<std::size_t>& stride)
+    std::vector<std::size_t>& stride,
+    std::size_t& offset)
 {
-    check_shape(raw_data, shape, 0);
-    flatten(raw_data, data);
+
+    storage = std::make_shared<TensorStorage>();
+
+    check_shape(data, shape, 0);
+    flatten(data, storage->data);
     set_stride(shape, stride);
+    offset = 0;
 }
 
 // Class
@@ -84,63 +89,35 @@ void build_tensor(const T& raw_data,
 
 Tensor::Tensor(std::vector<float> data)
 {
-    build_tensor<std::vector<float>>(data, _data, _shape, _stride);
+    build_tensor<std::vector<float>>(data, _storage, _shape, _stride, _offset);
 }
 
 Tensor::Tensor(std::vector<std::vector<float>> data)
 {
-    build_tensor<std::vector<std::vector<float>>>(data, _data, _shape, _stride);
+    build_tensor<std::vector<std::vector<float>>>(data, _storage, _shape, _stride, _offset);
 }
 
 Tensor::Tensor(std::vector<std::vector<std::vector<float>>> data)
 {
-    build_tensor<std::vector<std::vector<std::vector<float>>>>(data, _data, _shape, _stride);
+    build_tensor<std::vector<std::vector<std::vector<float>>>>(data, _storage, _shape, _stride, _offset);
 }
 
-Tensor::Tensor(std::vector<float> data, std::vector<std::size_t> shape)
+Tensor::Tensor(
+                std::shared_ptr<TensorStorage> storage, 
+                std::vector<std::size_t> shape, 
+                std::vector<size_t> stride, 
+                size_t offset
+            )
 {
-
-    std::size_t n = 1;
-    for (std::size_t i : shape)
-    {
-        n = n * i;
-    }
-
-    if (n != data.size())
-    {
-        throw std::invalid_argument("The data can't match the shape.");
-    }
-
-    _data = data;
-    _shape = shape;
-    set_stride(_shape, _stride);
-}
-
-TensorView::TensorView(float* data, std::vector<std::size_t> shape, std::vector<std::size_t> stride, std::size_t offset, std::size_t dim)
-{
-    _data = data;
+    _storage = storage;
     _shape = shape;
     _stride = stride;
     _offset = offset;
-    _dim = dim;
 }
 
 // Methods
 
 // getter
-
-template <typename T>
-const float& get_item(const T& tensor, const std::size_t offset)
-{
-    if (tensor.numel() == 1)
-    {
-        return tensor.data()[offset];
-    }
-    else
-    {
-        throw std::runtime_error("Only single element tensor support 'item' method");
-    }
-}
 
 const std::vector<std::size_t>& Tensor::shape() const
 {
@@ -152,39 +129,26 @@ const std::vector<std::size_t>& Tensor::stride() const
     return _stride;
 }
 
+size_t Tensor::offset() const
+{
+    return _offset;
+}
+
 const std::vector<float>& Tensor::data() const
 {
-    return _data;
+    return _storage->data;
 }
 
 const float& Tensor::item() const
 {
-    return get_item(*this, 0);
-}
-
-const std::vector<std::size_t>& TensorView::shape() const
-{
-    return _shape;
-}
-
-const std::vector<std::size_t>& TensorView::stride() const
-{
-    return _stride;
-}
-
-const float* TensorView::data() const
-{
-    return _data;
-}
-
-const float& TensorView::item() const
-{
-    return get_item(*this, _offset);
-}
-
-std::size_t TensorView::offset() const
-{
-    return _offset;
+    if (this->numel() == 1)
+    {
+        return _storage->data[_offset];
+    }
+    else
+    {
+        throw std::runtime_error("Only single element tensor support 'item' method");
+    }
 }
 
 // Others
@@ -199,100 +163,81 @@ std::size_t Tensor::numel() const
     return num;
 }
 
-std::size_t TensorView::numel() const
-{
-    std::size_t num = 1;
-    for (std::size_t i = _dim; i < _shape.size(); i++)
-    {
-        num = num * _shape[i];
-    }
-    return num;
-}
-
 // Overloads
 
-TensorView Tensor::operator[](std::size_t i)
+Tensor Tensor::operator[](std::size_t i) const
 {
-    const std::size_t dim0 = _shape[0];
 
-    if (i >= dim0)
+    if (i >= _shape[0])
     {
         throw std::out_of_range(
             "Tensor index out of range: i=" + std::to_string(i) +
-            ", valid range: [0, " + std::to_string(dim0 - 1) + "]"
+            ", valid range: [0, " + std::to_string(_shape[0] - 1) + "]"
         );
     }
-    return TensorView(_data.data(), _shape, _stride, i * _stride[0], 1);
-}
 
-TensorView TensorView::operator[](std::size_t i)
-{
-    const std::size_t dim0 = _shape[_dim];
-
-    if (i >= dim0)
+    std::vector<std::size_t> new_shape;
+    for (std::size_t i = 1; i < _shape.size(); i++)
     {
-        throw std::out_of_range(
-            "Tensor index out of range: i=" + std::to_string(i) +
-            ", valid range: [0, " + std::to_string(dim0 - 1) + "]"
-        );
+        new_shape.push_back(_shape[i]);
     }
-    return TensorView(_data, _shape, _stride, _offset + i * _stride[_dim], _dim + 1);
+
+    std::vector<std::size_t> new_stride;
+    for (std::size_t i = 1; i < _stride.size(); i++)
+    {
+        new_stride.push_back(_stride[i]);
+    }
+
+    return Tensor(_storage, new_shape, new_stride, _offset + i*_stride[0]);
 }
 
 // print
 
-template <typename T>
-void print(std::ostream& os, std::size_t i, T& data, std::vector<std::size_t> stride, std::size_t start, std::size_t end)
+void print(
+        std::ostream& os,
+        const std::size_t* shape, 
+        const std::size_t* stride,
+        const float* data,
+        std::size_t rest
+    )
 {
-    for (std::size_t j = 0; j + 1 < stride.size(); ++j)
+
+    std::size_t n = shape[0];
+    std::size_t s = stride[0];
+
+    os << "[";
+
+    if (rest > 1)
+    {
+        for (std::size_t i = 0; i < n; i++)
         {
-            if ((i% stride[j] == 0) | (i == start))
-            {
-                os << "[";
-            }
-
-            os << data[i];
-
-            if (((i + 1)% stride[j] == 0) | (i + 1 == end))
-            {
-                os << "]";
-            }
-            else
-            {
-                os << " ";
-            }
+            if (rest == 2)
+                os << "\n ";
+            print(os, shape + 1, stride + 1, data + i * s, rest-1);
         }
+        if (rest == 2)
+            os << "\n";
+    }
+    else
+    {
+        for (std::size_t i = 0; i < n; i++)
+        {
+            os << " " << data[i * s] << " ";
+        }
+    }
+
+    os << "]";
 }
 
 std::ostream& operator<<(std::ostream& os, const Tensor& tensor)
 {
 
-    std::vector<float> data = tensor.data();
-    std::vector<std::size_t> stride = tensor.stride();
+    print(
+        os, tensor.shape().data(), 
+        tensor.stride().data(), 
+        &tensor.data()[tensor.offset()], 
+        tensor.shape().size()
+    );
 
-    std::size_t start = 0;
-    std::size_t end = tensor.numel();
-
-    for (std::size_t i = 0; i < tensor.numel(); i++)
-    {
-        print(os, i, data, stride, start, end);
-    }
-
-    return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const TensorView& tensor)
-{
-
-    const float* data = tensor.data();
-    std::vector<std::size_t> stride = tensor.stride();
-
-    std::size_t start = tensor.offset();
-    std::size_t end = start + tensor.numel();
-
-    for (std::size_t i = tensor.offset(); i < tensor.offset() + tensor.numel(); i++)
-    {
-        print(os, i, data, stride, start, end);
-    }
     return os;
 }
