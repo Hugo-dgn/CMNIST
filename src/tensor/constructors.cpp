@@ -115,129 +115,19 @@ Tensor::Tensor(
     _offset = offset;
 }
 
-// Methods
-
-// getter
-
-const std::vector<std::size_t>& Tensor::shape() const
-{
-    return _shape;
-}
-
-const std::vector<std::size_t>& Tensor::stride() const
-{
-    return _stride;
-}
-
-size_t Tensor::offset() const
-{
-    return _offset;
-}
-
-const std::vector<float>& Tensor::data() const
-{
-    return _storage->data;
-}
-
-const float& Tensor::item() const
-{
-    if (this->numel() == 1)
-    {
-        return _storage->data[_offset];
-    }
-    else
-    {
-        throw std::runtime_error("Only single element tensor support 'item' method");
-    }
-}
-
-// Others
-
-std::size_t Tensor::numel() const
-{
-    std::size_t num = 1;
-    for (const std::size_t& d : _shape)
-    {
-        num = num * d;
-    }
-    return num;
-}
-
-// Overloads
-
-Tensor Tensor::operator[](std::size_t i) const
+Tensor::Tensor(
+                std::vector<float> data, 
+                std::vector<std::size_t> shape, 
+                std::vector<size_t> stride, 
+                size_t offset
+            )
 {
 
-    if (i >= _shape[0])
-    {
-        throw std::out_of_range(
-            "Tensor index out of range: i=" + std::to_string(i) +
-            ", valid range: [0, " + std::to_string(_shape[0] - 1) + "]"
-        );
-    }
+    auto storage = std::make_shared<TensorStorage>();
+    storage->data = data;
 
-    std::vector<std::size_t> new_shape;
-    for (std::size_t i = 1; i < _shape.size(); i++)
-    {
-        new_shape.push_back(_shape[i]);
-    }
-
-    std::vector<std::size_t> new_stride;
-    for (std::size_t i = 1; i < _stride.size(); i++)
-    {
-        new_stride.push_back(_stride[i]);
-    }
-
-    return Tensor(_storage, new_shape, new_stride, _offset + i*_stride[0]);
-}
-
-// print
-
-void print(
-        std::ostream& os,
-        const std::size_t* shape, 
-        const std::size_t* stride,
-        const float* data,
-        std::size_t rest
-    )
-{
-
-    std::size_t n = shape[0];
-    std::size_t s = stride[0];
-
-    os << "[";
-
-    if (rest > 1)
-    {
-        for (std::size_t i = 0; i < n; i++)
-        {
-            if (rest == 2)
-                os << "\n ";
-            print(os, shape + 1, stride + 1, data + i * s, rest-1);
-        }
-        if (rest == 2)
-            os << "\n";
-    }
-    else
-    {
-        for (std::size_t i = 0; i < n; i++)
-        {
-            os << " " << data[i * s] << " ";
-        }
-    }
-
-    os << "]";
-}
-
-std::ostream& operator<<(std::ostream& os, const Tensor& tensor)
-{
-
-    print(
-        os, tensor.shape().data(), 
-        tensor.stride().data(), 
-        &tensor.data()[tensor.offset()], 
-        tensor.shape().size()
-    );
-
-    return os;
+    _storage = storage;
+    _shape = shape;
+    _stride = stride;
+    _offset = offset;
 }
