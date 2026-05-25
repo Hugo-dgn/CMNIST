@@ -21,14 +21,12 @@ class Tensor
         Tensor(std::vector<std::vector<std::vector<float>>> data);
         Tensor(
                 std::shared_ptr<TensorStorage> storage, 
-                std::vector<std::size_t> shape, 
-                std::vector<size_t> stride, 
+                std::vector<std::size_t> shape,
                 size_t offset
             );
         Tensor(
                 std::vector<float> data, 
-                std::vector<std::size_t> shape, 
-                std::vector<size_t> stride, 
+                std::vector<std::size_t> shape,
                 size_t offset
             );
 
@@ -36,6 +34,7 @@ class Tensor
         const std::vector<std::size_t>& stride() const;
         size_t offset() const;
         const std::vector<float>& data() const;
+        std::vector<float>& rdata() const;
 
         const float& item() const;
 
@@ -43,20 +42,26 @@ class Tensor
         float* point() const;
 
         Tensor operator[](std::size_t i) const;
+        Tensor& operator+=(float x);
+        Tensor& operator-=(float x);
+        Tensor& operator*=(float x);
+        Tensor& operator/=(float x);
 };
+
+Tensor allocateTensor(std::vector<std::size_t> shape);
 
 //right scalar operations
 
-Tensor operator+(const float& x, const Tensor& tensor);
-Tensor operator-(const float& x, const Tensor& tensor);
-Tensor operator*(const float& x, const Tensor& tensor);
-Tensor operator/(const float& x, const Tensor& tensor);
+Tensor operator+(float x, const Tensor& tensor);
+Tensor operator-(float x, const Tensor& tensor);
+Tensor operator*(float x, const Tensor& tensor);
+Tensor operator/(float x, const Tensor& tensor);
 
 //left scalar operations
 
-Tensor operator+(const Tensor& tensor, const float& x);
-Tensor operator-(const Tensor& tensor, const float& x);
-Tensor operator*(const Tensor& tensor, const float& x);
-Tensor operator/(const Tensor& tensor, const float& x);
+Tensor operator+(const Tensor& tensor, float x);
+Tensor operator-(const Tensor& tensor, float x);
+Tensor operator*(const Tensor& tensor, float x);
+Tensor operator/(const Tensor& tensor, float x);
 
 std::ostream& operator<<(std::ostream& os, const Tensor& tensor);

@@ -4,152 +4,142 @@
 
 #include "tensor.hpp"
 
+template<bool Swap, typename Func>
 void apply(
-        const float& x,
-        std::function<float(float, float)> func,
-        std::vector<float>& res,
-        const std::size_t* shape, 
-        const std::size_t* stride,
-        const float* data,
-        std::size_t rest,
-        bool swap
+        float* __restrict__ src,
+        float* __restrict__ dst,
+        std::size_t numel,
+        float x,
+        Func func
     )
 {
-
-    std::size_t n = shape[0];
-    std::size_t s = stride[0];
-
-    if (rest > 1)
+    #pragma omp simd
+    for (std::size_t i = 0; i < numel; i++)
     {
-        for (std::size_t i = 0; i < n; i++)
-        {
-            apply(x, func, res, shape + 1, stride + 1, data + i * s, rest-1, swap);
-        } 
-    }
-    else
-    {
-        for (std::size_t i = 0; i < n; i++)
-        {
-            if (swap)
-            {
-                res.push_back(func(data[s*i], x));
-            }
-            else
-            {
-                res.push_back(func(x, data[s*i]));
-            }
-        } 
+        if constexpr (Swap)
+            dst[i] = func(src[i], x);
+        else
+            dst[i] = func(x, src[i]);
     }
 }
 
-float add(float x, float y)
+template<typename Func>
+void inplace_apply(
+        Tensor& tensor, 
+        float x,
+        Func func
+    )
 {
-    return x + y;
+    apply<true>(
+        tensor.point(),
+        tensor.point(),
+        tensor.numel(),
+        x,
+        func
+    );
 }
 
-float substract(float x, float y)
+template<bool Swap, typename Func>
+Tensor create_apply(
+                    float x, 
+                    const Tensor& tensor, 
+                    Func func
+                )
 {
-    return y - x;
+    Tensor new_tensor = allocateTensor(tensor.shape());
+
+     
+    apply<Swap>(
+            tensor.point(),
+            new_tensor.point(),
+            tensor.numel(),
+            x,
+            func
+    );
+    
+    return new_tensor;
 }
 
-float multiply(float x, float y)
-{
-    return x*y;
-}
+constexpr auto add = [](float a, float b) { return a + b; };
 
-float divide(float x, float y)
-{
-    return y / x;
-}
+constexpr auto substract = [](float a, float b) { return a - b; };
+
+constexpr auto multiply = [](float a, float b) { return a * b; };
+
+constexpr auto divide = [](float a, float b) { return a / b; };
+
+
+
+
+
+// Create
 
 // right
 
-Tensor operator+(const float& x, const Tensor& tensor)
+Tensor operator+(float x, const Tensor& tensor)
 {
-
-    std::size_t offset = 0;
-
-    std::vector<float> res = {};
-    apply(x, add, res, tensor.shape().data(), tensor.stride().data(), tensor.point(), tensor.shape().size(), true);
-
-    return Tensor(res, tensor.shape(), tensor.stride(), offset);
+    return create_apply<false>(x, tensor, add);
 }
 
-Tensor operator-(const float& x, const Tensor& tensor)
-{
-
-    std::size_t offset = 0;
-
-    std::vector<float> res = {};
-    apply(x, substract, res, tensor.shape().data(), tensor.stride().data(), tensor.point(), tensor.shape().size(), true);
-
-    return Tensor(res, tensor.shape(), tensor.stride(), offset);
+Tensor operator-(float x, const Tensor& tensor)
+{  
+    return create_apply<false>(x, tensor, substract);
 }
 
-Tensor operator*(const float& x, const Tensor& tensor)
+Tensor operator*(float x, const Tensor& tensor)
 {
-
-    std::size_t offset = 0;
-
-    std::vector<float> res = {};
-    apply(x, multiply, res, tensor.shape().data(), tensor.stride().data(), tensor.point(), tensor.shape().size(), true);
-
-    return Tensor(res, tensor.shape(), tensor.stride(), offset);
+    return create_apply<false>(x, tensor, multiply);
 }
 
-Tensor operator/(const float& x, const Tensor& tensor)
+Tensor operator/(float x, const Tensor& tensor)
 {
-
-    std::size_t offset = 0;
-
-    std::vector<float> res = {};
-    apply(x, divide, res, tensor.shape().data(), tensor.stride().data(), tensor.point(), tensor.shape().size(), true);
-
-    return Tensor(res, tensor.shape(), tensor.stride(), offset);
+    return create_apply<false>(x, tensor, divide);
 }
 
 // left
 
-Tensor operator+(const Tensor& tensor, const float& x)
+Tensor operator+(const Tensor& tensor, float x)
 {
-
-    std::size_t offset = 0;
-
-    std::vector<float> res = {};
-    apply(x, add, res, tensor.shape().data(), tensor.stride().data(), tensor.point(), tensor.shape().size(), false);
-
-    return Tensor(res, tensor.shape(), tensor.stride(), offset);
+    return create_apply<true>(x, tensor, add);
 }
 
-Tensor operator-(const Tensor& tensor, const float& x)
+Tensor operator-(const Tensor& tensor, float x)
 {
-
-    std::size_t offset = 0;
-
-    std::vector<float> res = {};
-    apply(x, substract, res, tensor.shape().data(), tensor.stride().data(), tensor.point(), tensor.shape().size(), false);
-
-    return Tensor(res, tensor.shape(), tensor.stride(), offset);
+    return create_apply<true>(x, tensor, substract);
 }
 
-Tensor operator*(const Tensor& tensor, const float& x)
+Tensor operator*(const Tensor& tensor, float x)
 {
-
-    std::size_t offset = 0;
-
-    std::vector<float> res = {};
-    apply(x, multiply, res, tensor.shape().data(), tensor.stride().data(), tensor.point(), tensor.shape().size(), false);
-
-    return Tensor(res, tensor.shape(), tensor.stride(), offset);
+    return create_apply<true>(x, tensor, multiply);
 }
 
-Tensor operator/(const Tensor& tensor, const float& x)
+Tensor operator/(const Tensor& tensor, float x)
 {
+    return create_apply<true>(1.0f / x, tensor, multiply);
+}
 
-    std::size_t offset = 0;
+// Inplace
 
-    std::vector<float> res = {};
-    apply(x, divide, res, tensor.shape().data(), tensor.stride().data(), tensor.point(), tensor.shape().size(), false);
+Tensor& Tensor::operator+=(float x)
+{
+    inplace_apply(*this, x, add);
+    return *this;
+}
 
-    return Tensor(res, tensor.shape(), tensor.stride(), offset);
+Tensor& Tensor::operator-=(float x)
+{
+    inplace_apply(*this, x, substract);
+    return *this;
+}
+
+Tensor& Tensor::operator*=(float x)
+{
+    inplace_apply(*this, x, multiply);
+    return *this;
+}
+
+Tensor& Tensor::operator/=(float x)
+{
+    inplace_apply(*this, 1.0f / x, multiply);
+    return *this;
 }

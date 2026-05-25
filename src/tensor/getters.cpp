@@ -23,6 +23,11 @@ const std::vector<float>& Tensor::data() const
     return _storage->data;
 }
 
+std::vector<float>& Tensor::rdata() const
+{
+    return _storage->data;
+}
+
 const float& Tensor::item() const
 {
     if (this->numel() == 1)

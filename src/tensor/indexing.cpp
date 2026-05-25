@@ -20,11 +20,5 @@ Tensor Tensor::operator[](std::size_t i) const
         new_shape.push_back(_shape[i]);
     }
 
-    std::vector<std::size_t> new_stride;
-    for (std::size_t i = 1; i < _stride.size(); i++)
-    {
-        new_stride.push_back(_stride[i]);
-    }
-
-    return Tensor(_storage, new_shape, new_stride, _offset + i*_stride[0]);
+    return Tensor(_storage, new_shape, _offset + i*_stride[0]);
 }

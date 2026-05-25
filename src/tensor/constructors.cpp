@@ -104,21 +104,19 @@ Tensor::Tensor(std::vector<std::vector<std::vector<float>>> data)
 
 Tensor::Tensor(
                 std::shared_ptr<TensorStorage> storage, 
-                std::vector<std::size_t> shape, 
-                std::vector<size_t> stride, 
+                std::vector<std::size_t> shape,
                 size_t offset
             )
 {
     _storage = storage;
     _shape = shape;
-    _stride = stride;
+    set_stride(shape, _stride);
     _offset = offset;
 }
 
 Tensor::Tensor(
                 std::vector<float> data, 
                 std::vector<std::size_t> shape, 
-                std::vector<size_t> stride, 
                 size_t offset
             )
 {
@@ -128,6 +126,6 @@ Tensor::Tensor(
 
     _storage = storage;
     _shape = shape;
-    _stride = stride;
+    set_stride(shape, _stride);
     _offset = offset;
 }
