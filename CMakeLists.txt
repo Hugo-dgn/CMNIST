@@ -9,6 +9,20 @@ project(
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ------------------------------------------------------------------------------
+# Global build configuration (IMPORTANT FIXES)
+# ------------------------------------------------------------------------------
+
+# Ensure Release builds are truly optimized everywhere
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Add architecture + high optimization globally for Release
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -DNDEBUG")
+
+# Enable LTO globally in Release (important for inlining across libs)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+
+# ------------------------------------------------------------------------------
 # Dependencies
 # ------------------------------------------------------------------------------
 
@@ -42,17 +56,24 @@ include(GoogleTest)
 # Source collection
 # ------------------------------------------------------------------------------
 
-file(GLOB_RECURSE NEURAL_CORE_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE NEURAL_CORE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+)
 list(FILTER NEURAL_CORE_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 
-file(GLOB_RECURSE TEST_SOURCES       CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
-file(GLOB_RECURSE BENCHMARK_SOURCES  CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/*.cpp")
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
+)
+
+file(GLOB_RECURSE BENCHMARK_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/*.cpp"
+)
 
 # ------------------------------------------------------------------------------
 # Core library
 # ------------------------------------------------------------------------------
 
-add_library(neural_core)
+add_library(neural_core STATIC)
 
 target_sources(neural_core PRIVATE ${NEURAL_CORE_SOURCES})
 
@@ -66,8 +87,7 @@ target_include_directories(
 )
 
 target_compile_options(
-    neural_core
-    PRIVATE
+    neural_core PRIVATE
         $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
         $<$<CXX_COMPILER_ID:MSVC>:/W4>
 )
@@ -83,34 +103,35 @@ add_executable(main src/main.cpp)
 target_link_libraries(main PRIVATE neural_core)
 
 # ------------------------------------------------------------------------------
-# Tests  (always Debug — inherits CMAKE_BUILD_TYPE)
+# Tests
 # ------------------------------------------------------------------------------
 
-add_executable(run_tests)
-target_sources(run_tests PRIVATE ${TEST_SOURCES})
-target_link_libraries(run_tests PRIVATE neural_core GTest::gtest GTest::gtest_main)
+add_executable(run_tests ${TEST_SOURCES})
+
+target_link_libraries(run_tests PRIVATE
+    neural_core
+    GTest::gtest
+    GTest::gtest_main
+)
+
 gtest_discover_tests(run_tests)
 
 # ------------------------------------------------------------------------------
-# Benchmarks  (always fully optimised, regardless of CMAKE_BUILD_TYPE)
+# Benchmarks (IMPORTANT: clean + fully optimized)
 # ------------------------------------------------------------------------------
 
-add_executable(run_benchmarks)
-target_sources(run_benchmarks PRIVATE ${BENCHMARK_SOURCES})
-target_link_libraries(run_benchmarks PRIVATE neural_core benchmark::benchmark benchmark::benchmark_main)
+add_executable(run_benchmarks ${BENCHMARK_SOURCES})
 
-# Strip any inherited debug flags and force Release-level optimisation
-# Works on GCC/Clang; for MSVC swap with /O2 /DNDEBUG
-target_compile_options(
-    run_benchmarks
-    PRIVATE
-        $<$<CXX_COMPILER_ID:GNU,Clang>:-O3 -march=native -DNDEBUG>
-        $<$<CXX_COMPILER_ID:MSVC>:/O2 /DNDEBUG>
+target_link_libraries(run_benchmarks PRIVATE
+    neural_core
+    benchmark::benchmark
+    benchmark::benchmark_main
 )
 
-# Also tell the linker to strip debug info for the benchmark binary
-set_target_properties(
-    run_benchmarks
-    PROPERTIES
-        INTERPROCEDURAL_OPTIMIZATION TRUE   # enables LTO for this target only
+# Ensure benchmarks are always optimized and inlined aggressively
+set_target_properties(run_benchmarks PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION TRUE
 )
+
+# IMPORTANT: DO NOT manually add -O3 here anymore
+# CMake already handles Release flags globally

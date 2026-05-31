@@ -35,6 +35,8 @@ class Tensor
         size_t offset() const;
         const std::vector<float>& data() const;
         std::vector<float>& rdata() const;
+        Tensor copy() const;
+        Tensor transpose() const;
 
         const float& item() const;
 
@@ -42,13 +44,27 @@ class Tensor
         float* point() const;
 
         Tensor operator[](std::size_t i) const;
+
         Tensor& operator+=(float x);
         Tensor& operator-=(float x);
         Tensor& operator*=(float x);
         Tensor& operator/=(float x);
+
+        Tensor& operator+=(const Tensor& tensor);
+        Tensor& operator-=(const Tensor& tensor);
+        Tensor& operator*=(const Tensor& tensor);
+        Tensor& operator/=(const Tensor& tensor);
+
+        Tensor operator+(const Tensor& tensor) const;
+        Tensor operator-(const Tensor& tensor) const;
+        Tensor operator*(const Tensor& tensor) const;
+        Tensor operator/(const Tensor& tensor) const;
 };
 
 Tensor allocateTensor(std::vector<std::size_t> shape);
+
+Tensor matmul(const Tensor tensor1, const Tensor tensor2);
+void inplace_matmul(const Tensor& tensor1, const Tensor& tensor2, Tensor& tensor3);
 
 //right scalar operations
 

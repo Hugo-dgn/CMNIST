@@ -1,13 +1,14 @@
 #include <vector>
 #include <iostream>
 #include <functional>
+#include <cstring>
 
 #include "tensor.hpp"
 
 template<bool Swap, typename Func>
 void apply(
-        float* __restrict__ src,
-        float* __restrict__ dst,
+        float* src,
+        float* dst,
         std::size_t numel,
         float x,
         Func func
@@ -48,7 +49,6 @@ Tensor create_apply(
 {
     Tensor new_tensor = allocateTensor(tensor.shape());
 
-     
     apply<Swap>(
             tensor.point(),
             new_tensor.point(),
@@ -67,10 +67,6 @@ constexpr auto substract = [](float a, float b) { return a - b; };
 constexpr auto multiply = [](float a, float b) { return a * b; };
 
 constexpr auto divide = [](float a, float b) { return a / b; };
-
-
-
-
 
 // Create
 
