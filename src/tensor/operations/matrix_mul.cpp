@@ -50,8 +50,8 @@ void inplace_matmul(const Tensor& tensor1, const Tensor& tensor2, Tensor& tensor
         throw std::runtime_error("Output shape mismatch.");
     }
 
-    float* data1 = tensor1.point();
-    float* data2 = tensor2.point();
+    const float* data1 = tensor1.point();
+    const float* data2 = tensor2.point();
     float* data3 = tensor3.point();
 
     const std::size_t stride1 = tensor1.stride()[0];
@@ -125,8 +125,8 @@ void inplace_matmul_transpose(const Tensor& tensor1, const Tensor& ttensor2, Ten
         throw std::runtime_error("Output shape mismatch.");
     }
 
-    float* data1 = tensor1.point();
-    float* tdata2 = ttensor2.point();
+    const float* data1 = tensor1.point();
+    const float* tdata2 = ttensor2.point();
     float* data3 = tensor3.point();
 
     const std::size_t stride1 = tensor1.stride()[0];
@@ -142,10 +142,12 @@ void inplace_matmul_transpose(const Tensor& tensor1, const Tensor& ttensor2, Ten
     #pragma omp parallel for collapse(2)
     for (std::size_t ii = 0; ii < iMax; ii += TILE_SIZE)
     for (std::size_t jj = 0; jj < jMax; jj += TILE_SIZE)
+    for (std::size_t kk = 0; kk < kMax; kk += TILE_SIZE)
     {
 
         std::size_t imax = std::min(iMax - ii, TILE_SIZE);
         std::size_t jmax = std::min(jMax - jj, TILE_SIZE);
+        std::size_t kmax = std::min(kMax - kk, TILE_SIZE);
 
         for (std::size_t i = ii; i < imax; i++)
         for (std::size_t j = jj; j < jmax; j++)
@@ -154,7 +156,7 @@ void inplace_matmul_transpose(const Tensor& tensor1, const Tensor& ttensor2, Ten
             float x = 0;
 
             #pragma omp simd reduction(+:x)
-            for (std::size_t k = 0; k < kMax; k++)
+            for (std::size_t k = kk; k < kmax; k++)
             {
                 x += data1[i * stride1 + k] * tdata2[j * tstride2 + k];
             }

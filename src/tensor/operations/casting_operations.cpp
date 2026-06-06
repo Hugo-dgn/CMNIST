@@ -8,7 +8,7 @@
 template<typename Func>
 void apply(
         float* src,
-        float* dst,
+        const float* dst,
         std::size_t numel,
         Func func
     )

@@ -34,14 +34,15 @@ class Tensor
         const std::vector<std::size_t>& stride() const;
         size_t offset() const;
         const std::vector<float>& data() const;
-        std::vector<float>& rdata() const;
+        std::vector<float>& rdata();
         Tensor copy() const;
         Tensor transpose() const;
 
         const float& item() const;
 
         std::size_t numel() const;
-        float* point() const;
+        float* point();
+        const float* point() const;
 
         Tensor operator[](std::size_t i) const;
 
@@ -64,7 +65,7 @@ class Tensor
 Tensor allocateTensor(std::vector<std::size_t> shape);
 
 Tensor matmul(const Tensor tensor1, const Tensor tensor2);
-Tensor matmul_transpose(const Tensor tensor1, const Tensor tensor2);
+Tensor matmul_transpose(const Tensor tensor1, const Tensor ttensor2);
 void inplace_matmul(const Tensor& tensor1, const Tensor& tensor2, Tensor& tensor3);
 void inplace_matmul_transpose(const Tensor& tensor1, const Tensor& ttensor2, Tensor& tensor3);
 

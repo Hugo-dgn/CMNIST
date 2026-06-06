@@ -15,7 +15,12 @@ std::size_t Tensor::numel() const
     return num;
 }
 
-float* Tensor::point() const
+float* Tensor::point()
+{
+    return _storage->data.data() + _offset;
+}
+
+const float* Tensor::point() const
 {
     return _storage->data.data() + _offset;
 }
@@ -47,7 +52,7 @@ Tensor Tensor::transpose() const
     std::size_t numel = this->numel();
     std::vector<float> data(numel, 0.0f);
 
-    float* src = this->point();
+    const float* src = this->point();
 
     constexpr std::size_t BLOCK_SIZE = 64;
 
@@ -55,11 +60,9 @@ Tensor Tensor::transpose() const
     for (std::size_t ii = 0; ii < _shape[0]; ii += BLOCK_SIZE)
     for (std::size_t jj = 0; jj < _shape[1]; jj += BLOCK_SIZE)
     {
-        const std::size_t i_max =
-            std::min(ii + BLOCK_SIZE, _shape[0]);
+        const std::size_t i_max = std::min(ii + BLOCK_SIZE, _shape[0]);
 
-        const std::size_t j_max =
-            std::min(jj + BLOCK_SIZE, _shape[1]);
+        const std::size_t j_max = std::min(jj + BLOCK_SIZE, _shape[1]);
 
         for (std::size_t i = ii; i < i_max; ++i)
         {

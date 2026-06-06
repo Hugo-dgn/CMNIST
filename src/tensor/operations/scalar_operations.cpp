@@ -7,7 +7,7 @@
 
 template<bool Swap, typename Func>
 void apply(
-        float* src,
+        const float* src,
         float* dst,
         std::size_t numel,
         float x,

@@ -23,7 +23,7 @@ const std::vector<float>& Tensor::data() const
     return _storage->data;
 }
 
-std::vector<float>& Tensor::rdata() const
+std::vector<float>& Tensor::rdata()
 {
     return _storage->data;
 }
