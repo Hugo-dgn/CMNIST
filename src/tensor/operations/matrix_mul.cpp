@@ -58,20 +58,30 @@ void inplace_matmul(const Tensor& tensor1, const Tensor& tensor2, Tensor& tensor
     const std::size_t stride2 = tensor2.stride()[0];
     const std::size_t stride3 = tensor3.stride()[0];
 
+    constexpr std::size_t TILE_SIZE = 32;
+
     const std::size_t iMax = shape3[0];
     const std::size_t jMax = shape3[1];
     const std::size_t kMax = shape2[0];
 
     #pragma omp parallel for collapse(2)
-    for (std::size_t i = 0; i < iMax; i++)
+    for (std::size_t ii = 0; ii < iMax; ii += TILE_SIZE)
+    for (std::size_t jj = 0; jj < jMax; jj += TILE_SIZE)
+    for (std::size_t kk = 0; kk < kMax; kk += TILE_SIZE)
     {
-        for (std::size_t k = 0; k < kMax; k++)
+
+        std::size_t imax = std::min(iMax - ii, TILE_SIZE);
+        std::size_t jmax = std::min(jMax - jj, TILE_SIZE);
+        std::size_t kmax = std::min(kMax - kk, TILE_SIZE);
+
+        for (std::size_t i = ii; i < imax; i++)
+        for (std::size_t k = kk; k < kmax; k++)
         {
 
             const float x = data1[i*stride1 + k];
 
             #pragma omp simd
-            for (std::size_t j = 0; j < jMax; j++)
+            for (std::size_t j = jj; j < jmax; j++)
             {
                 data3[i*stride3 + j] += x * data2[k*stride2 + j];
             }
@@ -96,11 +106,15 @@ Tensor matmul(const Tensor tensor1, const Tensor tensor2)
     return tensor3;
 };
 
-void reference_inplace_matmul(Tensor& tensor1, Tensor& tensor2, Tensor& tensor3)
+// Transposed
+
+void inplace_matmul_transpose(const Tensor& tensor1, const Tensor& ttensor2, Tensor& tensor3)
 {
     std::vector<std::size_t> shape1 = tensor1.shape();
-    std::vector<std::size_t> shape2 = tensor2.shape();
+    std::vector<std::size_t> tshape2 = ttensor2.shape();
     std::vector<std::size_t> shape3 = tensor3.shape();
+
+    std::vector<std::size_t> shape2(tshape2.rbegin(), tshape2.rend());
 
     if (!check_input_shape_match(shape1, shape2))
     {
@@ -112,28 +126,58 @@ void reference_inplace_matmul(Tensor& tensor1, Tensor& tensor2, Tensor& tensor3)
     }
 
     float* data1 = tensor1.point();
-    float* data2 = tensor2.point();
+    float* tdata2 = ttensor2.point();
     float* data3 = tensor3.point();
 
-    std::size_t stride1 = tensor1.stride()[0];
-    std::size_t stride2 = tensor2.stride()[0];
-    std::size_t stride3 = tensor3.stride()[0];
+    const std::size_t stride1 = tensor1.stride()[0];
+    const std::size_t tstride2 = ttensor2.stride()[0];
+    const std::size_t stride3 = tensor3.stride()[0];
 
-    std::size_t iMax = shape3[0];
-    std::size_t jMax = shape3[1];
-    std::size_t kMax = shape2[0];
+    constexpr std::size_t TILE_SIZE = 32;
 
-    for (std::size_t i = 0; i < iMax; i++)
+    const std::size_t iMax = shape3[0];
+    const std::size_t jMax = shape3[1];
+    const std::size_t kMax = shape2[0];
+
+    #pragma omp parallel for collapse(2)
+    for (std::size_t ii = 0; ii < iMax; ii += TILE_SIZE)
+    for (std::size_t jj = 0; jj < jMax; jj += TILE_SIZE)
     {
-        for (std::size_t k = 0; k < kMax; k++)
+
+        std::size_t imax = std::min(iMax - ii, TILE_SIZE);
+        std::size_t jmax = std::min(jMax - jj, TILE_SIZE);
+
+        for (std::size_t i = ii; i < imax; i++)
+        for (std::size_t j = jj; j < jmax; j++)
         {
-            float x = data1[i*stride1 + k];
-            for (std::size_t j = 0; j < jMax; j++)
+
+            float x = 0;
+
+            #pragma omp simd reduction(+:x)
+            for (std::size_t k = 0; k < kMax; k++)
             {
-                data3[i*stride3 + j] += x * data2[k*stride2 + j];
+                x += data1[i * stride1 + k] * tdata2[j * tstride2 + k];
             }
+            data3[i * stride3 + j] = x;
         }
     }
+}
 
+Tensor matmul_transpose(const Tensor tensor1, const Tensor ttensor2)
+{
+    std::vector<std::size_t> shape1 = tensor1.shape();
+    std::vector<std::size_t> tshape2 = ttensor2.shape();
 
+    std::vector<std::size_t> shape2(tshape2.rbegin(), tshape2.rend());
+
+    if (!check_input_shape_match(shape1, shape2))
+    {
+        throw std::runtime_error("Shape mismatch.");
+    }
+
+    std::vector<std::size_t> shape3 = {shape1[0], shape2[1]};
+    Tensor tensor3 = allocateTensor(shape3);
+    
+    inplace_matmul_transpose(tensor1, ttensor2, tensor3);
+    return tensor3;
 };

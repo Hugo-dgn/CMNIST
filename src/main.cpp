@@ -16,7 +16,7 @@ int main()
     };
     Tensor tensor1 = Tensor(data1);
     Tensor tensor2 = Tensor(data2);
-    Tensor tensor3 = matmul(tensor1, tensor2);
-    std::cout << tensor1.transpose() << std::endl;
+    Tensor tensor3 = matmul_transpose(tensor1, tensor2);
+    std::cout << tensor3 << std::endl;
     return 0;
 }

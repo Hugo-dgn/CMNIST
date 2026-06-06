@@ -49,11 +49,25 @@ Tensor Tensor::transpose() const
 
     float* src = this->point();
 
-    for (std::size_t i = 0; i < _shape[0]; i++)
+    constexpr std::size_t BLOCK_SIZE = 64;
+
+    #pragma omp parallel for collapse(2)
+    for (std::size_t ii = 0; ii < _shape[0]; ii += BLOCK_SIZE)
+    for (std::size_t jj = 0; jj < _shape[1]; jj += BLOCK_SIZE)
     {
-        for (std::size_t j = 0; j < _shape[1]; j++)
+        const std::size_t i_max =
+            std::min(ii + BLOCK_SIZE, _shape[0]);
+
+        const std::size_t j_max =
+            std::min(jj + BLOCK_SIZE, _shape[1]);
+
+        for (std::size_t i = ii; i < i_max; ++i)
         {
-            data[j*stride[0] + i] = src[i*_stride[0] + j];
+            for (std::size_t j = jj; j < j_max; ++j)
+            {
+                data[j * stride[0] + i] =
+                    src[i * _stride[0] + j];
+            }
         }
     }
 

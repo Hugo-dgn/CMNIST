@@ -1,0 +1,5 @@
+#!/usr/bin/bash
+
+sudo cpupower frequency-set --governor performance >/dev/null
+"$@"
+sudo cpupower frequency-set --governor powersave >/dev/null

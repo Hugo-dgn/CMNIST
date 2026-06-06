@@ -9,17 +9,20 @@ project(
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ------------------------------------------------------------------------------
-# Global build configuration (IMPORTANT FIXES)
+# Standards
 # ------------------------------------------------------------------------------
 
-# Ensure Release builds are truly optimized everywhere
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Add architecture + high optimization globally for Release
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -DNDEBUG")
+# ------------------------------------------------------------------------------
+# Release flags
+# ------------------------------------------------------------------------------
 
-# Enable LTO globally in Release (important for inlining across libs)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math -funroll-loops -DNDEBUG")
+
+# LTO in Release only
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
 # ------------------------------------------------------------------------------
@@ -43,7 +46,16 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 
+# Disable LTO for fetched deps (they may not support it cleanly)
+set(BENCHMARK_ENABLE_LTO OFF CACHE BOOL "" FORCE)
+
 FetchContent_MakeAvailable(googletest benchmark)
+
+# ------------------------------------------------------------------------------
+# OpenMP
+# ------------------------------------------------------------------------------
+
+find_package(OpenMP REQUIRED)
 
 # ------------------------------------------------------------------------------
 # Testing
@@ -86,13 +98,16 @@ target_include_directories(
         $<INSTALL_INTERFACE:include>
 )
 
-target_compile_options(
-    neural_core PRIVATE
-        $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
-        $<$<CXX_COMPILER_ID:MSVC>:/W4>
+target_compile_options(neural_core PRIVATE
+    # Warnings (debug-friendly, not Release-critical)
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+
+    # Tell the compiler pointers in hot paths don't alias
+    # (supplements -ffast-math for SIMD loops)
+    $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:-fno-plt>
 )
 
-find_package(OpenMP REQUIRED)
 target_link_libraries(neural_core PRIVATE OpenMP::OpenMP_CXX)
 
 # ------------------------------------------------------------------------------
@@ -117,7 +132,7 @@ target_link_libraries(run_tests PRIVATE
 gtest_discover_tests(run_tests)
 
 # ------------------------------------------------------------------------------
-# Benchmarks (IMPORTANT: clean + fully optimized)
+# Benchmarks
 # ------------------------------------------------------------------------------
 
 add_executable(run_benchmarks ${BENCHMARK_SOURCES})
@@ -126,12 +141,19 @@ target_link_libraries(run_benchmarks PRIVATE
     neural_core
     benchmark::benchmark
     benchmark::benchmark_main
+    OpenMP::OpenMP_CXX
 )
 
-# Ensure benchmarks are always optimized and inlined aggressively
+target_compile_options(run_benchmarks PRIVATE
+    $<$<AND:$<CONFIG:Release>,$<CXX_COMPILER_ID:GNU,Clang>>:
+        -O3
+        -march=native
+        -ffast-math
+        -funroll-loops
+        -fno-plt
+    >
+)
+
 set_target_properties(run_benchmarks PROPERTIES
-    INTERPROCEDURAL_OPTIMIZATION TRUE
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE
 )
-
-# IMPORTANT: DO NOT manually add -O3 here anymore
-# CMake already handles Release flags globally

@@ -64,7 +64,9 @@ class Tensor
 Tensor allocateTensor(std::vector<std::size_t> shape);
 
 Tensor matmul(const Tensor tensor1, const Tensor tensor2);
+Tensor matmul_transpose(const Tensor tensor1, const Tensor tensor2);
 void inplace_matmul(const Tensor& tensor1, const Tensor& tensor2, Tensor& tensor3);
+void inplace_matmul_transpose(const Tensor& tensor1, const Tensor& ttensor2, Tensor& tensor3);
 
 //right scalar operations
 
