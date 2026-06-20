@@ -2,6 +2,15 @@
 #include <vector>
 
 #include "tensor.hpp"
+#include "optim.hpp"
+
+Tensor mse(Tensor x, Tensor target)
+{
+    Tensor tmp1 = x - target;
+    Tensor tmp2 = tmp1 * tmp1;
+    Tensor loss = tmp2.sum();
+    return loss;
+}
 
 int main()
 {
@@ -15,20 +24,28 @@ int main()
 
     std::vector<std::vector<float>> data3 = {{0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}};
     bool requires_grad = true;
-    Tensor parameters = Tensor(data3, requires_grad);
+    Tensor tensor = Tensor(data3, requires_grad);
 
-    Tensor y = matmul(parameters, x);
-    Tensor tmp1 = y - target;
-    Tensor tmp2 = tmp1 * tmp1;
-    Tensor loss = tmp2.sum();
+    float lr = 0.01f;
+    std::vector<std::shared_ptr<TensorHandle>> parameters = {tensor.handle()};
+    SGD optimizer = SGD(parameters, lr);
 
-    loss.backward();
-    std::cout << parameters.grad() << std::endl;
+    int epochs = 100;
 
-    Tensor t({1.f, 2.f, 4.f});
-    auto r = 8.f / t;
-    loss.backward();
-    std::cout << r << std::endl;
+    for (int i = 0; i < epochs; i++)
+    {
+        optimizer.zero_grad();
+        Tensor y = matmul(tensor, x);
+        Tensor loss = mse(y, target);
+        std::cout << loss << std::endl;
+        loss.backward();
+        optimizer.step();
+    }
+
+    Tensor y = matmul(tensor, x);
+
+    std::cout << tensor << std::endl;
+    std::cout << y << std::endl;
 
     return 0;
 }

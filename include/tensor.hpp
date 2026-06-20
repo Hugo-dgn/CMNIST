@@ -92,6 +92,8 @@ class Tensor
         Tensor operator*(const Tensor& tensor) const;
         Tensor operator/(const Tensor& tensor) const;
 
+        void fill(const float x);
+
         void set_grad_fn(const std::vector<std::shared_ptr<TensorHandle>> parents, GradFn& backward);
 
         void backward(const std::shared_ptr<TensorHandle>& upstream_grad);
