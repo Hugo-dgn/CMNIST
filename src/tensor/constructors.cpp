@@ -75,7 +75,7 @@ void build_tensor(const T& data,
     std::size_t& offset)
 {
 
-    storage = std::make_shared<TensorStorage>();
+    //storage = std::make_shared<TensorStorage>();
 
     check_shape(data, shape, 0);
     flatten(data, storage->data);
@@ -83,49 +83,84 @@ void build_tensor(const T& data,
     offset = 0;
 }
 
+void initHandle(std::shared_ptr<TensorHandle>& handle)
+{
+    handle = std::make_shared<TensorHandle>();
+    handle->storage = std::make_shared<TensorStorage>();
+}
+
 // Class
 
 // Constructors
 
-Tensor::Tensor(std::vector<float> data)
+Tensor::Tensor(std::shared_ptr<TensorHandle> handle)
 {
-    build_tensor<std::vector<float>>(data, _storage, _shape, _stride, _offset);
+    _handle = handle;
 }
 
-Tensor::Tensor(std::vector<std::vector<float>> data)
+Tensor::Tensor(float x, bool requires_grad)
 {
-    build_tensor<std::vector<std::vector<float>>>(data, _storage, _shape, _stride, _offset);
+    initHandle(_handle);
+    _handle->storage = std::make_shared<TensorStorage>();
+    _handle->storage->data.push_back(x);
+    _handle->shape = {};
+    _handle->stride = {};
+    _handle->offset = 0;
+    _handle->storage->requires_grad = requires_grad;
+
 }
 
-Tensor::Tensor(std::vector<std::vector<std::vector<float>>> data)
+Tensor::Tensor(std::vector<float> data, bool requires_grad)
 {
-    build_tensor<std::vector<std::vector<std::vector<float>>>>(data, _storage, _shape, _stride, _offset);
+    initHandle(_handle);
+    build_tensor<std::vector<float>>(data, _handle->storage, _handle->shape, _handle->stride, _handle->offset);
+    _handle->storage->requires_grad = requires_grad;
+}
+
+Tensor::Tensor(std::vector<std::vector<float>> data, bool requires_grad)
+{
+    initHandle(_handle);
+    build_tensor<std::vector<std::vector<float>>>(data, _handle->storage, _handle->shape, _handle->stride, _handle->offset);
+    _handle->storage->requires_grad = requires_grad;
+}
+
+Tensor::Tensor(std::vector<std::vector<std::vector<float>>> data, bool requires_grad)
+{
+    initHandle(_handle);
+    build_tensor<std::vector<std::vector<std::vector<float>>>>(data, _handle->storage, _handle->shape, _handle->stride, _handle->offset);
+    _handle->storage->requires_grad = requires_grad;
 }
 
 Tensor::Tensor(
                 std::shared_ptr<TensorStorage> storage, 
                 std::vector<std::size_t> shape,
-                size_t offset
+                size_t offset,
+                bool requires_grad
             )
 {
-    _storage = storage;
-    _shape = shape;
-    set_stride(shape, _stride);
-    _offset = offset;
+    initHandle(_handle);
+    _handle->storage = storage;
+    _handle->shape = shape;
+    set_stride(shape, _handle->stride);
+    _handle->offset = offset;
+    _handle->storage->requires_grad = requires_grad;
 }
 
 Tensor::Tensor(
                 std::vector<float> data, 
                 std::vector<std::size_t> shape, 
-                size_t offset
+                size_t offset,
+                bool requires_grad
             )
 {
 
+    initHandle(_handle);
     auto storage = std::make_shared<TensorStorage>();
     storage->data = data;
 
-    _storage = storage;
-    _shape = shape;
-    set_stride(shape, _stride);
-    _offset = offset;
+    _handle->storage = storage;
+    _handle->shape = shape;
+    set_stride(shape, _handle->stride);
+    _handle->offset = offset;
+    _handle->storage->requires_grad = requires_grad;
 }

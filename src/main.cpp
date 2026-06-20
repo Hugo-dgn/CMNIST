@@ -5,18 +5,24 @@
 
 int main()
 {
-    std::vector<std::vector<float>> data1 = {
-        {1.f, 2.f, 3.f},
-        {4.f, 5.f, 6.f}
-    };
-    std::vector<std::vector<float>> data2 = {
-        {7.f, 8.f},
-        {9.f, 10.f},
-        {11.f, 12.f}
-    };
-    Tensor tensor1 = Tensor(data1);
-    Tensor tensor2 = Tensor(data2);
-    Tensor tensor3 = matmul_transpose(tensor1, tensor2);
-    std::cout << tensor3 << std::endl;
+    std::vector<float> data1 = {1.f, 2.f, 3.f};
+    std::vector<size_t> shape = {3, 1};
+    std::size_t offset = 0;
+    Tensor x = Tensor(data1, shape, offset);
+
+    std::vector<float> data2 = {1.f, 3.f, -1.f};
+    Tensor target = Tensor(data2, shape, offset);
+
+    std::vector<std::vector<float>> data3 = {{0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}};
+    bool requires_grad = true;
+    Tensor parameters = Tensor(data3, requires_grad);
+
+    Tensor y = matmul(parameters, x);
+    Tensor tmp1 = y - target;
+    Tensor tmp2 = tmp1 * tmp1;
+    Tensor loss = tmp2.sum();
+
+    loss.backward();
+    std::cout << parameters.grad() << std::endl;
     return 0;
 }

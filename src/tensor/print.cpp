@@ -42,12 +42,21 @@ void print(
 std::ostream& operator<<(std::ostream& os, const Tensor& tensor)
 {
 
-    print(
-        os, tensor.shape().data(), 
-        tensor.stride().data(), 
-        tensor.point(),
-        tensor.shape().size()
-    );
+    std::size_t ndim = tensor.shape().size();
+
+    if (ndim == 0)
+    {
+        os << "item(" << tensor.item() << ")";
+    }
+    else
+    {
+        print(
+            os, tensor.shape().data(), 
+            tensor.stride().data(), 
+            tensor.point(),
+            ndim
+        );
+    }
 
     return os;
 }

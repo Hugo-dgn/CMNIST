@@ -86,28 +86,121 @@ Tensor& Tensor::operator/=(const Tensor& tensor)
 
 Tensor Tensor::operator+(const Tensor& tensor) const
 {
-    Tensor new_tensor = this->copy();
-    new_tensor += tensor;
-    return new_tensor;
+    Tensor res = this->copy();
+    res += tensor;
+
+    if (tensor.requires_grad() || this->requires_grad())
+    {
+
+        std::shared_ptr<TensorHandle> handle1 = this->handle();
+        std::shared_ptr<TensorHandle> handle2 = tensor.handle();
+
+        const std::vector<std::shared_ptr<TensorHandle>> parent_handles = {handle1, handle2};
+        GradFn grad_fn =
+        [handle1, handle2](const std::shared_ptr<TensorHandle>& upstream)
+        -> std::vector<std::shared_ptr<TensorHandle>>
+        {
+            Tensor tmp1 = Tensor(handle1);
+            Tensor tmp2 = Tensor(handle2);
+            Tensor grad1 = upstream;
+            Tensor grad2 = upstream;
+            const std::vector<std::shared_ptr<TensorHandle>> grad_handles = {grad1.handle(), grad2.handle()};
+            return grad_handles;
+        };
+
+        res.set_grad_fn(parent_handles, grad_fn);
+    }
+
+    return res;
 }
 
 Tensor Tensor::operator-(const Tensor& tensor) const
 {
-    Tensor new_tensor = this->copy();
-    new_tensor -= tensor;
-    return new_tensor;
+    Tensor res = this->copy();
+    res -= tensor;
+
+    if (tensor.requires_grad() || this->requires_grad())
+    {
+
+        std::shared_ptr<TensorHandle> handle1 = this->handle();
+        std::shared_ptr<TensorHandle> handle2 = tensor.handle();
+
+        const std::vector<std::shared_ptr<TensorHandle>> parent_handles = {handle1, handle2};
+        GradFn grad_fn =
+        [handle1, handle2](const std::shared_ptr<TensorHandle>& upstream)
+        -> std::vector<std::shared_ptr<TensorHandle>>
+        {
+            Tensor tmp1 = Tensor(handle1);
+            Tensor tmp2 = Tensor(handle2);
+            Tensor grad1 = upstream;
+            Tensor grad2 = -1.0f * upstream;
+            const std::vector<std::shared_ptr<TensorHandle>> grad_handles = {grad1.handle(), grad2.handle()};
+            return grad_handles;
+        };
+
+        res.set_grad_fn(parent_handles, grad_fn);
+    }
+
+    return res;
 }
 
 Tensor Tensor::operator*(const Tensor& tensor) const
 {
-    Tensor new_tensor = this->copy();
-    new_tensor *= tensor;
-    return new_tensor;
+    Tensor res = this->copy();
+    res *= tensor;
+    res.handle()->storage->requires_grad = tensor.handle()->storage->requires_grad;
+
+    if (tensor.requires_grad() || this->requires_grad())
+    {
+
+        std::shared_ptr<TensorHandle> handle1 = this->handle();
+        std::shared_ptr<TensorHandle> handle2 = tensor.handle();
+
+        const std::vector<std::shared_ptr<TensorHandle>> parent_handles = {handle1, handle2};
+        GradFn grad_fn =
+        [handle1, handle2](const std::shared_ptr<TensorHandle>& upstream)
+        -> std::vector<std::shared_ptr<TensorHandle>>
+        {
+            Tensor tmp1 = Tensor(handle1);
+            Tensor tmp2 = Tensor(handle2);
+            Tensor grad1 = tmp2 * upstream;
+            Tensor grad2 = tmp1 * upstream;
+            const std::vector<std::shared_ptr<TensorHandle>> grad_handles = {grad1.handle(), grad2.handle()};
+            return grad_handles;
+        };
+
+        res.set_grad_fn(parent_handles, grad_fn);
+    }
+
+    return res;
 }
 
 Tensor Tensor::operator/(const Tensor& tensor) const
 {
-    Tensor new_tensor = this->copy();
-    new_tensor /= tensor;
-    return new_tensor;
+    Tensor res = this->copy();
+    res /= tensor;
+
+    if (tensor.requires_grad() || this->requires_grad())
+    {
+
+        std::shared_ptr<TensorHandle> handle1 = this->handle();
+        std::shared_ptr<TensorHandle> handle2 = tensor.handle();
+
+        const std::vector<std::shared_ptr<TensorHandle>> parent_handles = {handle1, handle2};
+        GradFn grad_fn =
+        [handle1, handle2](const std::shared_ptr<TensorHandle>& upstream)
+        -> std::vector<std::shared_ptr<TensorHandle>>
+        {
+            Tensor tmp1 = Tensor(handle1);
+            Tensor tmp2 = Tensor(handle2);
+            Tensor grad1 = 1.0f / tmp2 * upstream;
+            Tensor grad2 = -1.0f * tmp1 / (tmp2*tmp2) * upstream;
+            const std::vector<std::shared_ptr<TensorHandle>> grad_handles = {grad1.handle(), grad2.handle()};
+            return grad_handles;
+        };
+
+        res.set_grad_fn(parent_handles, grad_fn);
+    }
+
+    return res;
 }

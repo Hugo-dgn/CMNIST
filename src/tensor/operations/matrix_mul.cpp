@@ -89,7 +89,7 @@ void inplace_matmul(const Tensor& tensor1, const Tensor& tensor2, Tensor& tensor
     }
 };
 
-Tensor matmul(const Tensor tensor1, const Tensor tensor2)
+Tensor matmul(const Tensor& tensor1, const Tensor& tensor2)
 {
     std::vector<std::size_t> shape1 = tensor1.shape();
     std::vector<std::size_t> shape2 = tensor2.shape();
@@ -103,6 +103,29 @@ Tensor matmul(const Tensor tensor1, const Tensor tensor2)
     Tensor tensor3 = allocateTensor(shape3);
     
     inplace_matmul(tensor1, tensor2, tensor3);
+
+    if (tensor1.requires_grad() || tensor2.requires_grad())
+    {
+
+        std::shared_ptr<TensorHandle> handle1 = tensor1.handle();
+        std::shared_ptr<TensorHandle> handle2 = tensor2.handle();
+
+        const std::vector<std::shared_ptr<TensorHandle>> parent_handles = {handle1, handle2};
+        GradFn grad_fn =
+        [handle1, handle2](const std::shared_ptr<TensorHandle>& upstream)
+        -> std::vector<std::shared_ptr<TensorHandle>>
+        {
+            Tensor tmp1 = Tensor(handle1);
+            Tensor tmp2 = Tensor(handle2);
+            Tensor grad1 = matmul(upstream, tmp2.transpose());
+            Tensor grad2 = matmul(tmp1.transpose(), upstream);
+            const std::vector<std::shared_ptr<TensorHandle>> grad_handles = {grad1.handle(), grad2.handle()};
+            return grad_handles;
+        };
+
+        tensor3.set_grad_fn(parent_handles, grad_fn);
+    }
+
     return tensor3;
 };
 
@@ -165,7 +188,7 @@ void inplace_matmul_transpose(const Tensor& tensor1, const Tensor& ttensor2, Ten
     }
 }
 
-Tensor matmul_transpose(const Tensor tensor1, const Tensor ttensor2)
+Tensor matmul_transpose(const Tensor& tensor1, const Tensor& ttensor2)
 {
     std::vector<std::size_t> shape1 = tensor1.shape();
     std::vector<std::size_t> tshape2 = ttensor2.shape();
