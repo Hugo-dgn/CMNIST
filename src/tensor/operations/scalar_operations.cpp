@@ -208,7 +208,7 @@ Tensor operator*(float x, const Tensor& tensor)
 Tensor operator/(float x, const Tensor& tensor)
 {
     constexpr bool swap = false;
-    Tensor res = create_apply<true>(1.0f / x, tensor, multiply);
+    Tensor res = create_apply<swap>(x, tensor, divide);
     set_divide_grad_fn<swap>(tensor, res, x);
     return res;
 }
@@ -242,7 +242,7 @@ Tensor operator*(const Tensor& tensor, float x)
 Tensor operator/(const Tensor& tensor, float x)
 {
     constexpr bool swap = true;
-    Tensor res = create_apply<true>(1.0f / x, tensor, multiply);
+    Tensor res = create_apply<swap>(1.0f / x, tensor, multiply);
     set_divide_grad_fn<swap>(tensor, res, x);
     return res;
 }

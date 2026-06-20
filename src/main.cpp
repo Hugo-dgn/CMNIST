@@ -24,5 +24,11 @@ int main()
 
     loss.backward();
     std::cout << parameters.grad() << std::endl;
+
+    Tensor t({1.f, 2.f, 4.f});
+    auto r = 8.f / t;
+    loss.backward();
+    std::cout << r << std::endl;
+
     return 0;
 }
